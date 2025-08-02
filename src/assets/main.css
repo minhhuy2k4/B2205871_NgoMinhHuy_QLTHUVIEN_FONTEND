@@ -1,0 +1,26 @@
+@import './base.css';
+
+/* Override Bootstrap với custom styles */
+#app {
+  font-weight: normal;
+}
+
+/* Vue-specific styles */
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+/* Remove specific layout that conflicts with Bootstrap */
+@media (min-width: 1024px) {
+  /* Let Bootstrap handle the layout */
+}
