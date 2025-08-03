@@ -3,17 +3,17 @@ import apiClient from "./api.service.js";
 export const muonSachService = {
   // Gửi yêu cầu mượn sách
   create(data) {
-    return apiClient.post('/theodoimuonsach', data);
+    return apiClient.post("/theodoimuonsach", data);
   },
 
   // Lấy tất cả phiếu mượn (cho admin)
   getAll(params) {
-    return apiClient.get('/theodoimuonsach', { params });
+    return apiClient.get("/theodoimuonsach", { params });
   },
 
   // Lấy phiếu mượn của tôi (cho độc giả)
   getMyBorrowings() {
-    return apiClient.get('/theodoimuonsach/my-borrowings');
+    return apiClient.get("/theodoimuonsach/my-borrowings");
   },
 
   // Cập nhật trạng thái phiếu mượn
