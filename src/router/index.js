@@ -16,6 +16,7 @@ const AdminBorrowings = () => import("../views/admin/AdminBorrowings.vue");
 const AdminPublishers = () => import("../views/admin/AdminPublishers.vue");
 const AddBook = () => import("../views/admin/AddBook.vue");
 const AddPublisher = () => import("../views/admin/AddPublisher.vue");
+const UserManagement = () => import("../views/admin/UserManagement.vue");
 
 const routes = [
   {
@@ -87,6 +88,16 @@ const routes = [
     name: "AdminBorrowings",
     component: AdminBorrowings,
     meta: { requiresAuth: true, requiresNhanVien: true },
+  },
+  {
+    path: "/admin/users",
+    name: "UserManagement",
+    component: UserManagement,
+    meta: {
+      requiresAuth: true,
+      requiresNhanVien: true,
+      requiresAdmin: true, // Thêm meta này để kiểm tra admin
+    },
   },
   {
     path: "/:pathMatch(.*)*",

@@ -16,7 +16,7 @@ export const useAuthStore = defineStore("auth", {
     isNhanVien: (state) =>
       state.user?.role === "nhanvien" || state.user?.userType === "nhanvien",
     isAdmin: (state) =>
-      state.user?.role === "nhanvien" || state.user?.userType === "nhanvien",
+      state.user?.chucVu === "admin" || state.user?.userType === "admin",
     isDocGia: (state) =>
       state.user?.role === "docgia" || state.user?.userType === "docgia",
     userName: (state) => state.user?.hoTenNV || state.user?.hoTen,

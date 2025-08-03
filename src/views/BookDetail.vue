@@ -129,28 +129,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Admin Actions -->
-          <div v-if="authStore.isAdmin" class="card mt-4">
-            <div class="card-header">
-              <h5 class="card-title mb-0">
-                <i class="bi bi-tools me-2"></i>
-                Thao tác quản trị
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="btn-group" role="group">
-                <button class="btn btn-outline-primary" @click="editBook">
-                  <i class="bi bi-pencil me-1"></i>
-                  Chỉnh sửa
-                </button>
-                <button class="btn btn-outline-danger" @click="deleteBook">
-                  <i class="bi bi-trash me-1"></i>
-                  Xóa sách
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

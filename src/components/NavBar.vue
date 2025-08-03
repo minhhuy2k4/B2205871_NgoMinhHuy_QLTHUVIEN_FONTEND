@@ -34,9 +34,14 @@
               @click.prevent="toggleAdminDropdown"
               role="button"
             >
-              Quản trị
+              Quản lý
             </a>
             <ul class="dropdown-menu" :class="{ 'show': isAdminDropdownOpen }">
+              <li v-if="authStore.user?.chucVu === 'admin'">
+                  <router-link to="/admin/users" class="dropdown-item">
+                    Quản lý người dùng
+                  </router-link>
+              </li>
               <li><router-link class="dropdown-item" to="/admin/books">Quản lý sách</router-link></li>
               <li><router-link class="dropdown-item" to="/admin/publishers">Quản lý nhà xuất bản</router-link></li>
               <li><router-link class="dropdown-item" to="/admin/borrowings">Quản lý mượn trả</router-link></li>

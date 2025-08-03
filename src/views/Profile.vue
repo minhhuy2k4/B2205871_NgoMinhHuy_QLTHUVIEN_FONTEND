@@ -157,7 +157,9 @@
                         class="form-control"
                         id="editChucVu"
                         v-model="form.chucVu"
+                        disabled
                       >
+                      <div class="form-text">Chức vụ không thể thay đổi</div>
                     </div>
                   </div>
                   <div class="row">
@@ -183,7 +185,7 @@
                   </div>
                 </div>
 
-                <!-- Form cho Độc giả -->
+                <!-- Form cho Độc giả - GIỮ NGUYÊN -->
                 <div v-else>
                   <div class="row">
                     <div class="col-md-6 mb-3">
@@ -433,19 +435,19 @@ export default {
       const user = authStore.user
       if (user) {
         if (isNhanVien.value) {
-          // Load nhân viên data
-          form.maso = user.maso || user.msnv || ''
+          // ✅ Load nhân viên data - LOAD chức vụ nhưng không cho sửa
+          form.maso = user.maso || user.msnv || user.maNV || ''
           form.hoTenNV = user.hoTenNV || user.hoTen || ''
-          form.chucVu = user.chucVu || ''
+          form.chucVu = user.chucVu || '' // ✅ Load để hiển thị nhưng disabled
           form.diaChi = user.diaChi || ''
           form.soDienThoai = user.soDienThoai || ''
         } else {
-          // Load độc giả data
+          // Load độc giả data - GIỮ NGUYÊN
           form.email = user.email || ''
           form.hoTen = user.hoTen || ''
           form.phai = user.phai || user.gioitinh || ''
           form.ngaysinh = user.ngaysinh || user.ngaySinh ? (user.ngaysinh || user.ngaySinh).split('T')[0] : ''
-          form.diaChi = user.diaChi || user.diachi || ''   // SỬA DÒNG NÀY
+          form.diaChi = user.diaChi || user.diachi || ''
           form.soDienThoai = user.soDienThoai || user.dienThoai || ''
         }
       }
@@ -457,31 +459,27 @@ export default {
       updateSuccess.value = ''
 
       try {
-        
-        // Kiểm tra user tồn tại
         if (!authStore.user) {
           throw new Error('Bạn chưa đăng nhập. Vui lòng đăng nhập lại.')
         }
         
-        // Kiểm tra ID người dùng
         const userId = authStore.user._id || authStore.user.id
         if (!userId) {
           throw new Error('Không tìm thấy ID người dùng. Vui lòng đăng nhập lại.')
         }
-        
 
         let updateData = {}
 
         if (isNhanVien.value) {
-          // Chuẩn bị data cho nhân viên
+          // ✅ SỬA: Bỏ chức vụ khỏi data update
           updateData = {
             hoTenNV: form.hoTenNV,
-            chucVu: form.chucVu,
+            // chucVu: form.chucVu, // ✅ BỎ DÒNG NÀY
             diaChi: form.diaChi,
             soDienThoai: form.soDienThoai
           }
         } else {
-          // Chuẩn bị data cho độc giả
+          // Chuẩn bị data cho độc giả - GIỮ NGUYÊN
           updateData = {
             hoTen: form.hoTen,
             phai: form.phai,
@@ -498,8 +496,9 @@ export default {
           }
         })
 
+        console.log('Updating profile with data:', updateData) // ✅ DEBUG
 
-        // Gọi API profile mới
+        // ✅ Gọi API profile
         const response = await fetch('/api/profile/update', {
           method: 'PUT',
           headers: {
@@ -516,6 +515,7 @@ export default {
           const errorData = await response.json()
           throw new Error(errorData.message || 'Có lỗi xảy ra khi cập nhật')
         }
+
         const result = await response.json()
 
         // Lấy lại thông tin user mới nhất từ backend
@@ -524,6 +524,7 @@ export default {
             'Authorization': `Bearer ${authStore.token || localStorage.getItem('token')}`
           }
         });
+        
         if (profileRes.ok) {
           const user = await profileRes.json();
           if (user._id && !user.id) user.id = user._id;
@@ -536,7 +537,6 @@ export default {
         // Đóng modal sau khi cập nhật thành công
         const modal = document.getElementById('editProfileModal')
         if (modal) {
-          // Luôn tạo instance nếu chưa có
           let bsModal = window.bootstrap?.Modal?.getInstance(modal)
           if (!bsModal && window.bootstrap?.Modal) {
             bsModal = new window.bootstrap.Modal(modal)
@@ -547,11 +547,11 @@ export default {
         }
         
         setTimeout(() => { updateSuccess.value = '' }, 1000)
-      } catch (error) {
         
+      } catch (error) {
+        console.error('Update profile error:', error)
         updateError.value = error.message || 'Có lỗi xảy ra khi cập nhật thông tin'
         
-        // Nếu lỗi authentication, redirect về login
         if (error.message.includes('đăng nhập')) {
           setTimeout(() => {
             authStore.logout()
