@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth.js";
-
+import NotFound from "../views/NotFound.vue";
 // Lazy load components
 const Home = () => import("../views/Home.vue");
 const Login = () => import("../views/Login.vue");
@@ -56,7 +56,7 @@ const routes = [
     path: "/my-borrowings",
     name: "MyBorrowings",
     component: MyBorrowings,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresDocGia: true },
   },
   {
     path: "/admin/books",
@@ -88,6 +88,11 @@ const routes = [
     component: AdminBorrowings,
     meta: { requiresAuth: true, requiresNhanVien: true },
   },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "NotFound",
+    component: NotFound,
+  },
 ];
 
 const router = createRouter({
@@ -112,10 +117,14 @@ router.beforeEach((to, from, next) => {
 
   // Kiểm tra route cần quyền nhân viên
   if (to.meta.requiresNhanVien && !authStore.isNhanVien) {
-    next("/");
+    next({ name: "NotFound" });
     return;
   }
-
+  // Kiểm tra route chỉ dành cho độc giả
+  if (to.meta.requiresDocGia && !authStore.isDocGia) {
+    next({ name: "NotFound" });
+    return;
+  }
   // Kiểm tra route chỉ dành cho guest (chưa đăng nhập)
   if (to.meta.guest && authStore.isAuthenticated) {
     next("/");

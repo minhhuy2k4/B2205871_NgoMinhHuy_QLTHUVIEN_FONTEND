@@ -19,8 +19,7 @@ export const useAuthStore = defineStore("auth", {
       state.user?.role === "nhanvien" || state.user?.userType === "nhanvien",
     isDocGia: (state) =>
       state.user?.role === "docgia" || state.user?.userType === "docgia",
-    userName: (state) =>
-      state.user?.hoTen || state.user?.username || state.user?.tenDocGia,
+    userName: (state) => state.user?.hoTenNV || state.user?.hoTen,
     sessionStatus: (state) => {
       if (!state.isAuthenticated) return "disconnected";
       if (!state.token) return "expired";
@@ -45,26 +44,26 @@ export const useAuthStore = defineStore("auth", {
 
         console.log("Login response:", response);
 
-        // Backend trả về: {message, data: {user info}, token}
         if (response.data && response.data.token) {
           const token = response.data.token;
-          const user = response.data.data; // User info trong data.data
-          const refreshToken = response.data.refreshToken; // Có thể không có
+          const user = response.data.data;
+          const refreshToken = response.data.refreshToken;
 
           this.token = token;
           this.refreshToken = refreshToken || null;
           this.user = user;
           this.isAuthenticated = true;
 
-          // Lưu vào localStorage
-          localStorage.setItem("token", token);
+          // LƯU VÀO SESSIONSTORAGE - TỰ ĐỘNG MẤT KHI ĐÓNG BROWSER
+          sessionStorage.setItem("token", token);
           if (refreshToken) {
-            localStorage.setItem("refreshToken", refreshToken);
+            sessionStorage.setItem("refreshToken", refreshToken);
           }
-          localStorage.setItem("userInfo", JSON.stringify(user));
+          sessionStorage.setItem("userInfo", JSON.stringify(user));
+          sessionStorage.setItem("loginTime", Date.now().toString());
 
-          // Bắt đầu timer để auto refresh token
-          this.startTokenRefreshTimer();
+          // SETUP SESSION MANAGEMENT THAY VÌ 23H TIMER
+          this.setupSessionManagement();
 
           return { success: true };
         } else {
@@ -124,71 +123,103 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    // Khôi phục state từ localStorage khi reload page
+    // KHÔI PHỤC TỪ SESSIONSTORAGE THAY VÌ LOCALSTORAGE
     async restoreAuth() {
-      const token = localStorage.getItem("token");
-      const refreshToken = localStorage.getItem("refreshToken");
-      const userInfo = localStorage.getItem("userInfo");
+      const token = sessionStorage.getItem("token");
+      const refreshToken = sessionStorage.getItem("refreshToken");
+      const userInfo = sessionStorage.getItem("userInfo");
 
       if (token && userInfo && userInfo !== "undefined") {
         try {
           this.token = token;
           this.refreshToken = refreshToken;
           const user = JSON.parse(userInfo);
-          // Đảm bảo user có trường id
           if (user._id && !user.id) user.id = user._id;
           this.user = user;
           this.isAuthenticated = true;
-          this.startTokenRefreshTimer();
+
+          // SETUP SESSION MANAGEMENT
+          this.setupSessionManagement();
         } catch (error) {
-          console.error("Error parsing user info from localStorage:", error);
+          console.error("Error parsing user info from sessionStorage:", error);
           this.logout();
         }
       }
     },
 
-    // Kiểm tra và refresh token nếu cần
-    async validateAndRefreshToken() {
+    // SETUP SESSION MANAGEMENT - THAY THẾ 23H TIMER
+    setupSessionManagement() {
+      // KIỂM TRA TOKEN MỖI 5 PHÚT
+      this.refreshTimer = setInterval(async () => {
+        if (this.isAuthenticated) {
+          const isValid = await this.validateToken();
+          if (!isValid) {
+            this.logout();
+
+            // Redirect to login
+            if (!window.location.href.includes("/login")) {
+              window.location.href = "/login";
+            }
+          }
+        }
+      }, 5 * 60 * 1000); // 5 phút
+
+      // CẬP NHẬT ACTIVITY
+      this.updateActivity();
+    },
+
+    // CẬP NHẬT LAST ACTIVITY
+    updateActivity() {
+      const updateTime = () => {
+        if (this.isAuthenticated) {
+          sessionStorage.setItem("lastActivity", Date.now().toString());
+        }
+      };
+
+      // Cập nhật ngay
+      updateTime();
+
+      // Lắng nghe user activity
+      [
+        "mousedown",
+        "mousemove",
+        "keypress",
+        "scroll",
+        "touchstart",
+        "click",
+        "focus",
+      ].forEach((event) => {
+        document.addEventListener(event, updateTime, { passive: true });
+      });
+    },
+
+    // KIỂM TRA TOKEN HỢP LỆ
+    async validateToken() {
       if (!this.token) return false;
 
       try {
-        // Thử gọi API để kiểm tra token
         const response = await authService.getCurrentUser();
-        this.user = response.data.data; // Backend trả về { data: { ...userInfo } }
-        this.isAuthenticated = true;
+        this.user = response.data.data;
         return true;
       } catch (error) {
-        if (error.response?.status === 401) {
-          // Token hết hạn, hiện tại backend chưa support refresh token
-          console.error("Token validation failed:", error);
-          this.logout();
-          return false;
-        } else {
-          console.error("Token validation failed:", error);
-          this.logout();
-          return false;
-        }
+        return false;
       }
     },
 
-    // Auto refresh token mỗi 23 giờ
+    // THAY THẾ validateAndRefreshToken CŨ
+    async validateAndRefreshToken() {
+      return await this.validateToken();
+    },
+
+    // BỎ 23H TIMER - SESSION TỰ MẤT KHI ĐÓNG BROWSER
     startTokenRefreshTimer() {
-      // Clear any existing timer
-      if (this.refreshTimer) {
-        clearInterval(this.refreshTimer);
-      }
-
-      // Refresh token sau 23 giờ (trước khi hết hạn 24h)
-      const refreshInterval = 23 * 60 * 60 * 1000; // 23 hours in milliseconds
-
-      this.refreshTimer = setInterval(async () => {
-        if (this.isAuthenticated && this.refreshToken) {
-          await this.validateAndRefreshToken();
-        }
-      }, refreshInterval);
+      console.log(
+        "Using sessionStorage - session will auto-expire when browser is closed"
+      );
+      // Không cần 23h timer nữa
     },
 
-    // Validate token khi cần (lazy validation)
+    // VALIDATE TOKEN KHI CẦN
     async ensureValidToken() {
       if (!this.isAuthenticated || !this.token) {
         return false;
@@ -200,7 +231,6 @@ export const useAuthStore = defineStore("auth", {
         return true;
       } catch (error) {
         if (error.response?.status === 401) {
-          // Token không hợp lệ, logout
           this.logout();
           return false;
         }

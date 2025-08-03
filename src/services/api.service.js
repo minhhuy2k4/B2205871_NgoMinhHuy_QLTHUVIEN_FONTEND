@@ -13,7 +13,15 @@ const apiClient = axios.create({
 // Interceptor để tự động thêm token vào header
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
+
+    // DEBUG LOGS
+    console.log("🌐 API Request:", {
+      method: config.method.toUpperCase(),
+      url: config.baseURL + config.url,
+      hasToken: !!token,
+    });
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -33,12 +41,10 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Token không hợp lệ, tạm thời không support refresh token
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userInfo");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("userInfo");
 
-      // Redirect to login if not already there
       if (!window.location.href.includes("/login")) {
         window.location.href = "/login";
       }

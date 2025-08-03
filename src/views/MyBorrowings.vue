@@ -25,6 +25,24 @@
             <li class="nav-item" role="presentation">
               <button 
                 class="nav-link" 
+                :class="{ active: activeTab === 'pending' }"
+                @click="setActiveTab('pending')"
+              >
+                Chờ duyệt ({{ pendingCount }})
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button 
+                class="nav-link" 
+                :class="{ active: activeTab === 'approved' }"
+                @click="setActiveTab('approved')"
+              >
+                Đã duyệt ({{ approvedCount }})
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button 
+                class="nav-link" 
                 :class="{ active: activeTab === 'borrowing' }"
                 @click="setActiveTab('borrowing')"
               >
@@ -94,26 +112,44 @@
                 {{ borrowing.sach?.tacGia }}
               </p>
 
+              <!-- Thông tin ngày tháng dựa theo trạng thái -->
               <div class="row text-sm mb-3">
                 <div class="col-6">
-                  <strong>Ngày mượn:</strong><br>
-                  <span class="text-muted">{{ formatDate(borrowing.ngayMuon) }}</span>
+                  <strong>Ngày yêu cầu:</strong><br>
+                  <span class="text-muted">{{ formatDate(borrowing.ngayYeuCau || borrowing.ngayTao) }}</span>
                 </div>
-                <div class="col-6">
+                <div class="col-6" v-if="borrowing.tinhTrang === 'Chờ duyệt'">
+                  <strong>Trạng thái:</strong><br>
+                  <span class="text-warning">Chờ admin phê duyệt</span>
+                </div>
+                <div class="col-6" v-else-if="borrowing.tinhTrang === 'Đã duyệt'">
+                  <strong>Ngày duyệt:</strong><br>
+                  <span class="text-info">{{ formatDate(borrowing.ngayDuyet) }}</span>
+                </div>
+                <div class="col-6" v-else-if="borrowing.tinhTrang === 'Đang mượn'">
                   <strong>Hạn trả:</strong><br>
                   <span 
                     class="text-muted"
                     :class="{ 'text-danger': isOverdue(borrowing) }"
                   >
-                    {{ formatDate(borrowing.hanTra) }}
+                    {{ formatDate(borrowing.ngayHenTra) }}
                   </span>
+                </div>
+                <div class="col-6" v-else-if="borrowing.tinhTrang === 'Đã trả'">
+                  <strong>Ngày trả:</strong><br>
+                  <span class="text-success">{{ formatDate(borrowing.ngayTra) }}</span>
+                </div>
+                <div class="col-6" v-else-if="borrowing.tinhTrang === 'Hủy mượn'">
+                  <strong>Ngày hủy:</strong><br>
+                  <span class="text-danger">{{ formatDate(borrowing.ngayHuy) }}</span>
                 </div>
               </div>
 
-              <div v-if="borrowing.ngayTra" class="row text-sm mb-3">
+              <!-- Thông tin bổ sung -->
+              <div v-if="borrowing.tinhTrang === 'Đang mượn'" class="row text-sm mb-3">
                 <div class="col-6">
-                  <strong>Ngày trả:</strong><br>
-                  <span class="text-muted">{{ formatDate(borrowing.ngayTra) }}</span>
+                  <strong>Ngày mượn:</strong><br>
+                  <span class="text-muted">{{ formatDate(borrowing.ngayMuon) }}</span>
                 </div>
                 <div class="col-6" v-if="borrowing.phiPhat">
                   <strong>Phí phạt:</strong><br>
@@ -126,6 +162,23 @@
                 <p class="text-muted mb-0">{{ borrowing.ghiChu }}</p>
               </div>
 
+              <!-- Progress bar cho từng trạng thái -->
+              <div class="mb-3">
+                <div class="progress" style="height: 4px;">
+                  <div 
+                    class="progress-bar" 
+                    :class="getProgressClass(borrowing)"
+                    :style="{ width: getProgressWidth(borrowing) }"
+                  ></div>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                  <small class="text-muted">Yêu cầu</small>
+                  <small class="text-muted">Duyệt</small>
+                  <small class="text-muted">Mượn</small>
+                  <small class="text-muted">Trả</small>
+                </div>
+              </div>
+
               <div class="d-flex gap-2">
                 <router-link 
                   :to="borrowing.sach && borrowing.sach._id ? `/books/${borrowing.sach._id}` : '#'" 
@@ -135,6 +188,18 @@
                   <i class="bi bi-eye me-1"></i>
                   Xem sách
                 </router-link>
+                
+                <!-- Nút hủy yêu cầu cho trạng thái "Chờ duyệt" -->
+                <button 
+                  v-if="canCancelRequest(borrowing)"
+                  class="btn btn-sm btn-outline-danger"
+                  @click="cancelRequest(borrowing)"
+                  :disabled="loading"
+                >
+                  <i class="bi bi-x-circle me-1"></i>
+                  <span v-if="loading">Đang hủy...</span>
+                  <span v-else>Hủy yêu cầu</span>
+                </button>
               </div>
             </div>
           </div>
@@ -166,40 +231,48 @@ export default {
     const authStore = useAuthStore()
     const router = useRouter()
 
-    // Chỉ cho phép độc giả truy cập
     if (!authStore.isDocGia) {
-      router.replace('/') // hoặc router.push('/'), hoặc trang báo lỗi
+      router.replace('/')
       return {}
     }
 
     const borrowings = ref([])
     const loading = ref(false)
     const error = ref('')
-    const requesting = ref(false)
     const activeTab = ref('all')
 
     const filteredBorrowings = computed(() => {
       switch (activeTab.value) {
+        case 'pending':
+          return borrowings.value.filter(b => b.tinhTrang === 'Chờ duyệt')
+        case 'approved':
+          return borrowings.value.filter(b => b.tinhTrang === 'Đã duyệt')
         case 'borrowing':
-          return borrowings.value.filter(b => !b.ngayTra && !isOverdue(b))
+          return borrowings.value.filter(b => b.tinhTrang === 'Đang mượn' && !isOverdue(b))
         case 'returned':
-          return borrowings.value.filter(b => b.ngayTra)
+          return borrowings.value.filter(b => b.tinhTrang === 'Đã trả')
         case 'overdue':
-          return borrowings.value.filter(b => !b.ngayTra && isOverdue(b))
+          return borrowings.value.filter(b => b.tinhTrang === 'Đang mượn' && isOverdue(b))
         default:
           return borrowings.value
       }
     })
 
     const totalCount = computed(() => borrowings.value.length)
+    const pendingCount = computed(() => 
+      borrowings.value.filter(b => b.tinhTrang === 'Chờ duyệt').length
+    )
+    const approvedCount = computed(() => 
+      borrowings.value.filter(b => b.tinhTrang === 'Đã duyệt').length
+    )
     const borrowingCount = computed(() => 
-      borrowings.value.filter(b => !b.ngayTra && !isOverdue(b)).length
+      borrowings.value.filter(b => b.tinhTrang === 'Đang mượn' && !isOverdue(b)).length
     )
     const returnedCount = computed(() => 
-      borrowings.value.filter(b => b.ngayTra).length
+      borrowings.value.filter(b => b.tinhTrang === 'Đã trả').length
     )
     const overdueCount = computed(() => 
-      borrowings.value.filter(b => !b.ngayTra && isOverdue(b)).length
+      borrowings.value.filter(b => b.tinhTrang === 'Đang mượn' && isOverdue(b)).length
     )
 
     const fetchBorrowings = async () => {
@@ -213,22 +286,40 @@ export default {
       
       try {
         const response = await muonSachService.getMyBorrowings()
-        // Backend trả về data trong response.data.data
         const data = response.data.data || response.data
         
-        // Transform data để phù hợp với frontend
-        borrowings.value = data.map(item => ({
-          _id: item._id,
-          ngayMuon: item.ngayMuon,
-          ngayHenTra: item.ngayHenTra || item.hanTra, // Backend có thể dùng field khác
-          ngayTra: item.ngayTra,
-          tinhTrang: item.tinhTrang || item.trangThaiMuon, // Sử dụng trangThaiMuon từ backend
-          ghiChu: item.ghiChu,
-          tienPhat: item.tienPhat,
-          soNgayQuaHan: item.soNgayQuaHan,
-          sach: item.sach, // Backend trả về sach đã được populate
-          hanTra: item.ngayHenTra || item.hanTra
-        }))
+        // DEBUG LOG
+        console.log('📚 Raw borrowings data:', data);
+        
+        borrowings.value = data.map(item => {
+          const mapped = {
+            _id: item._id,
+            ngayYeuCau: item.ngayYeuCau || item.ngayTao, // Fallback to ngayTao
+            ngayDuyet: item.ngayDuyet,
+            ngayMuon: item.ngayMuon,
+            ngayHenTra: item.ngayHenTra,
+            ngayTra: item.ngayTra,
+            ngayHuy: item.ngayHuy,
+            tinhTrang: item.tinhTrang,
+            ghiChu: item.ghiChu,
+            tienPhat: item.tienPhat,
+            sach: item.sach || item.thongTinSach, // Fallback
+            ngayTao: item.ngayTao
+          }
+          
+          // DEBUG LOG cho item đầu tiên
+          if (data.indexOf(item) === 0) {
+            console.log('📝 Sample mapping:', {
+              original: item,
+              mapped: mapped
+            });
+          }
+          
+          return mapped;
+        })
+        
+        console.log('✅ Final borrowings:', borrowings.value);
+        
       } catch (err) {
         error.value = 'Không thể tải danh sách mượn sách'
         console.error('Lỗi khi tải danh sách mượn sách:', err)
@@ -242,26 +333,102 @@ export default {
     }
 
     const isOverdue = (borrowing) => {
-      if (borrowing.ngayTra) return false
-      return new Date() > new Date(borrowing.hanTra)
+      if (borrowing.tinhTrang !== 'Đang mượn' || borrowing.ngayTra) return false
+      if (!borrowing.ngayHenTra) return false
+      return new Date() > new Date(borrowing.ngayHenTra)
     }
 
     const getStatusBadgeClass = (borrowing) => {
-      if (borrowing.ngayTra) return 'bg-success'
-      if (borrowing.tinhTrang === "Chờ trả sách") return 'bg-info'
-      if (isOverdue(borrowing)) return 'bg-danger'
-      return 'bg-warning'
+      switch(borrowing.tinhTrang) {
+        case 'Chờ duyệt': return 'bg-warning text-dark'
+        case 'Đã duyệt': return 'bg-info'
+        case 'Đang mượn': 
+          return isOverdue(borrowing) ? 'bg-danger' : 'bg-primary'
+        case 'Đã trả': return 'bg-success'
+        case 'Hủy mượn': return 'bg-secondary'
+        default: return 'bg-secondary'
+      }
     }
 
     const getStatusText = (borrowing) => {
-      if (borrowing.ngayTra) return 'Đã trả'
-      if (borrowing.tinhTrang === "Chờ trả sách") return 'Chờ trả sách'
-      if (isOverdue(borrowing)) return 'Quá hạn'
-      return 'Đang mượn'
+      if (borrowing.tinhTrang === 'Đang mượn' && isOverdue(borrowing)) {
+        return 'Quá hạn'
+      }
+      return borrowing.tinhTrang
+    }
+
+    const getProgressClass = (borrowing) => {
+      switch(borrowing.tinhTrang) {
+        case 'Chờ duyệt': return 'bg-warning'
+        case 'Đã duyệt': return 'bg-info'
+        case 'Đang mượn': return isOverdue(borrowing) ? 'bg-danger' : 'bg-primary'
+        case 'Đã trả': return 'bg-success'
+        case 'Hủy mượn': return 'bg-secondary'
+        default: return 'bg-secondary'
+      }
+    }
+
+    const getProgressWidth = (borrowing) => {
+      switch(borrowing.tinhTrang) {
+        case 'Chờ duyệt': return '25%'
+        case 'Đã duyệt': return '50%'
+        case 'Đang mượn': return '75%'
+        case 'Đã trả': return '100%'
+        case 'Hủy mượn': return '25%'
+        default: return '0%'
+      }
+    }
+
+    const cancelRequest = async (borrowing) => {
+      // Kiểm tra điều kiện trước khi hủy
+      if (borrowing.tinhTrang !== 'Chờ duyệt') {
+        alert('Chỉ có thể hủy yêu cầu khi đang ở trạng thái "Chờ duyệt"')
+        return
+      }
+
+      if (confirm('Bạn có chắc muốn hủy yêu cầu mượn sách này?\n\nSau khi hủy, bạn sẽ cần gửi yêu cầu mới nếu muốn mượn sách này.')) {
+        try {
+          loading.value = true // Thêm loading state
+
+          await muonSachService.updateStatus(borrowing._id, {
+            tinhTrang: 'Hủy mượn',
+            ghiChu: 'Độc giả hủy yêu cầu mượn sách'
+          })
+          
+          await fetchBorrowings()
+          alert('Hủy yêu cầu thành công!')
+          
+        } catch (error) {
+          console.error('Lỗi khi hủy yêu cầu:', error)
+          
+          let errorMessage = 'Có lỗi xảy ra khi hủy yêu cầu'
+          
+          if (error.response?.data?.message) {
+            errorMessage = error.response.data.message
+          } else if (error.response?.status === 403) {
+            errorMessage = 'Bạn không có quyền thực hiện thao tác này'
+          } else if (error.response?.status === 400) {
+            errorMessage = 'Không thể hủy yêu cầu ở trạng thái hiện tại'
+          }
+          
+          alert(errorMessage)
+          
+        } finally {
+          loading.value = false
+        }
+      }
+    }
+
+    const canCancelRequest = (borrowing) => {
+      return borrowing.tinhTrang === 'Chờ duyệt' && !loading.value
     }
 
     const getEmptyMessage = () => {
       switch (activeTab.value) {
+        case 'pending':
+          return 'Không có yêu cầu chờ duyệt'
+        case 'approved':
+          return 'Không có phiếu đã duyệt'
         case 'borrowing':
           return 'Không có sách đang mượn'
         case 'returned':
@@ -275,6 +442,10 @@ export default {
 
     const getEmptyDescription = () => {
       switch (activeTab.value) {
+        case 'pending':
+          return 'Bạn chưa có yêu cầu mượn sách nào chờ duyệt'
+        case 'approved':
+          return 'Bạn chưa có phiếu mượn nào được duyệt'
         case 'borrowing':
           return 'Bạn chưa có sách nào đang mượn'
         case 'returned':
@@ -286,10 +457,15 @@ export default {
       }
     }
 
-
     const formatDate = (dateString) => {
       if (!dateString) return 'Không xác định'
-      return new Date(dateString).toLocaleDateString('vi-VN')
+      try {
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return 'Không xác định'
+        return date.toLocaleDateString('vi-VN')
+      } catch (error) {
+        return 'Không xác định'
+      }
     }
 
     const formatCurrency = (amount) => {
@@ -307,10 +483,11 @@ export default {
       borrowings,
       loading,
       error,
-      requesting,
       activeTab,
       filteredBorrowings,
       totalCount,
+      pendingCount,
+      approvedCount,
       borrowingCount,
       returnedCount,
       overdueCount,
@@ -319,6 +496,10 @@ export default {
       isOverdue,
       getStatusBadgeClass,
       getStatusText,
+      getProgressClass,
+      getProgressWidth,
+      cancelRequest,
+      canCancelRequest,
       getEmptyMessage,
       getEmptyDescription,
       formatDate,
@@ -357,5 +538,9 @@ export default {
 
 .text-sm {
   font-size: 0.875rem;
+}
+
+.progress {
+  background-color: #e9ecef;
 }
 </style>

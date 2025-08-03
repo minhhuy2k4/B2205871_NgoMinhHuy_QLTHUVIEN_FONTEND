@@ -17,7 +17,7 @@
       <div class="card mb-4">
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-6">
               <input
                 type="text"
                 class="form-control"
@@ -26,19 +26,15 @@
                 @input="handleSearch"
               >
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
               <select class="form-select" v-model="statusFilter" @change="handleSearch">
                 <option value="">Tất cả trạng thái</option>
-                <option value="dangmuon">Đang mượn</option>
-                <option value="datra">Đã trả</option>
-                <option value="quahan">Quá hạn</option>
+                <option value="Chờ duyệt">Chờ duyệt</option>
+                <option value="Đã duyệt">Đã duyệt</option>
+                <option value="Đang mượn">Đang mượn</option>
+                <option value="Đã trả">Đã trả</option>
+                <option value="Hủy mượn">Hủy mượn</option>
               </select>
-            </div>
-            <div class="col-md-2">
-              <input type="date" class="form-control" v-model="dateFrom" @change="handleSearch">
-            </div>
-            <div class="col-md-2">
-              <input type="date" class="form-control" v-model="dateTo" @change="handleSearch">
             </div>
             <div class="col-md-3">
               <div class="d-flex gap-2">
@@ -46,10 +42,66 @@
                   <i class="bi bi-arrow-clockwise me-1"></i>
                   Reset
                 </button>
-                <button class="btn btn-outline-primary" @click="exportData">
-                  <i class="bi bi-download me-1"></i>
-                  Xuất Excel
+                <button class="btn btn-primary" @click="handleSearch">
+                  <i class="bi bi-search me-1"></i>
+                  Tìm kiếm
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card bg-warning text-dark">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-clock-history display-6 me-3"></i>
+                <div>
+                  <h5 class="card-title mb-0">{{ stats.pending }}</h5>
+                  <small>Chờ duyệt</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-info text-white">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-check-circle display-6 me-3"></i>
+                <div>
+                  <h5 class="card-title mb-0">{{ stats.approved }}</h5>
+                  <small>Đã duyệt</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-primary text-white">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-book display-6 me-3"></i>
+                <div>
+                  <h5 class="card-title mb-0">{{ stats.borrowing }}</h5>
+                  <small>Đang mượn</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-success text-white">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-bookmark-check display-6 me-3"></i>
+                <div>
+                  <h5 class="card-title mb-0">{{ stats.returned }}</h5>
+                  <small>Đã trả</small>
+                </div>
               </div>
             </div>
           </div>
@@ -73,11 +125,10 @@
                     <th>Mã sách</th>
                     <th>Độc giả</th>
                     <th>Sách</th>
+                    <th>Ngày yêu cầu</th>
                     <th>Ngày mượn</th>
                     <th>Hạn trả</th>
                     <th>Ngày trả</th>
-                    <th>Tiền phạt</th>
-                    <th>Ghi chú</th>
                     <th>Nhân viên</th>
                     <th>Trạng thái</th>
                     <th>Thao tác</th>
@@ -95,50 +146,61 @@
                     </td>
                     <td>
                       <strong>{{ borrowing.sach?.tenSach || borrowing.thongTinSach?.tenSach }}</strong><br>
-                      <small class="text-muted">{{ borrowing.sach?.tacGia || borrowing.thongTinSach?.tacGia }}</small>
+                      <small class="text-muted">{{ borrowing.sach?.tacGia || borrowing.thongTinSach?.tacGia }}</small><br>
+                      <small class="text-info">Mã NXB: {{ borrowing.sach?.maNXB || borrowing.thongTinSach?.maNXB || 'N/A' }}</small>
                     </td>
-                    <td>{{ formatDate(borrowing.ngayMuon) }}</td>
-                    <td :class="{ 'text-danger': isOverdue(borrowing) }">
-                      {{ formatDate(borrowing.hanTra || borrowing.ngayHenTra) }}
+                    <td>{{ formatDate(borrowing.ngayYeuCau || borrowing.ngayTao) }}</td>
+                    <td>{{ borrowing.ngayMuon ? formatDate(borrowing.ngayMuon) : '-' }}</td>
+                    <td>
+                      <span v-if="borrowing.ngayHenTra" :class="{ 'text-danger': isOverdue(borrowing) }">
+                        {{ formatDate(borrowing.ngayHenTra) }}
+                      </span>
+                      <span v-else>-</span>
                     </td>
                     <td>{{ borrowing.ngayTra ? formatDate(borrowing.ngayTra) : '-' }}</td>
                     <td>
-                      <span v-if="borrowing.tienPhat > 0" class="text-danger">
-                        {{ formatCurrency(borrowing.tienPhat) }}
-                      </span>
-                      <span v-else class="text-muted">-</span>
-                    </td>
-                    <td>
-                      <small class="text-muted" :title="borrowing.ghiChu">
-                        {{ borrowing.ghiChu ? (borrowing.ghiChu.length > 20 ? borrowing.ghiChu.substring(0, 20) + '...' : borrowing.ghiChu) : '-' }}
-                      </small>
-                    </td>
-                    <td>
                       <small class="text-muted">
-                        {{ borrowing.nhanVien?.hoTenNV || borrowing.thongTinNhanVien?.hoTenNV || 'Tự động' }}
+                        {{ borrowing.nhanVien?.hoTenNV || borrowing.thongTinNhanVien?.hoTenNV || '-' }}
                       </small>
                     </td>
                     <td>
-                      <span class="badge" :class="getStatusBadgeClass(borrowing)">
-                        {{ getStatusText(borrowing) }}
-                      </span>
+                      <select 
+                        class="form-select form-select-sm"
+                        :value="borrowing.tinhTrang"
+                        @change="updateBorrowingStatus(borrowing, $event.target.value)"
+                        :disabled="loading"
+                      >
+                        <option :value="borrowing.tinhTrang">{{ borrowing.tinhTrang }}</option>
+                        <option 
+                          v-for="status in getValidStatusesForBorrowing(borrowing)"
+                          :key="status"
+                          :value="status"
+                        >
+                          {{ status }}
+                        </option>
+                      </select>
+                      
+                      <small class="text-muted d-block mt-1">
+                        {{ getStatusDescription(borrowing) }}
+                      </small>
                     </td>
                     <td>
                       <div class="btn-group btn-group-sm">
-                        <button 
-                          v-if="!borrowing.ngayTra"
-                          class="btn btn-outline-success"
-                          @click="returnBook(borrowing)"
-                          title="Xác nhận trả sách"
-                        >
-                          <i class="bi bi-check-circle"></i>
-                        </button>
                         <button 
                           class="btn btn-outline-info"
                           @click="viewDetails(borrowing)"
                           title="Xem chi tiết"
                         >
                           <i class="bi bi-eye"></i>
+                        </button>
+                        
+                        <button 
+                          v-if="['Đã trả', 'Hủy mượn'].includes(borrowing.tinhTrang)"
+                          class="btn btn-outline-danger"
+                          @click="deleteBorrowing(borrowing)"
+                          title="Xóa phiếu"
+                        >
+                          <i class="bi bi-trash"></i>
                         </button>
                       </div>
                     </td>
@@ -171,83 +233,202 @@
       </div>
     </div>
 
-    <!-- Create Borrowing Modal -->
-    <div class="modal fade" :class="{ show: showAddModal }" :style="{ display: showAddModal ? 'block' : 'none' }">
-      <div class="modal-dialog">
+    <!-- Detail Modal -->
+    <div class="modal fade" :class="{ show: showDetailModal }" :style="{ display: showDetailModal ? 'block' : 'none' }" tabindex="-1">
+      <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Tạo Phiếu Mượn Mới</h5>
-            <button type="button" class="btn-close" @click="closeModal"></button>
+            <h5 class="modal-title">
+              <i class="bi bi-info-circle me-2"></i>
+              Chi Tiết Phiếu Mượn
+            </h5>
+            <button type="button" class="btn-close" @click="closeDetailModal"></button>
           </div>
-          <form @submit.prevent="createBorrowing">
-            <div class="modal-body">
-              <div class="mb-3">
-                <label class="form-label">Độc giả *</label>
-                <select class="form-select" v-model="borrowingForm.docGiaId" required>
-                  <option value="">Chọn độc giả</option>
-                  <option v-for="reader in readers" :key="reader._id" :value="reader._id">
-                    {{ reader.hoTen }} - {{ reader.email }}
-                  </option>
-                </select>
+          <div class="modal-body" v-if="selectedBorrowing">
+            <div class="row">
+              <!-- Thông tin phiếu mượn -->
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Thông tin phiếu</h6>
+                  </div>
+                  <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                      <tr>
+                        <td class="fw-bold">Mã phiếu:</td>
+                        <td>{{ selectedBorrowing._id }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">Ngày yêu cầu:</td>
+                        <td>{{ formatDateTime(selectedBorrowing.ngayYeuCau || selectedBorrowing.ngayTao) }}</td>
+                      </tr>
+                      <tr v-if="selectedBorrowing.ngayDuyet">
+                        <td class="fw-bold">Ngày duyệt:</td>
+                        <td>{{ formatDateTime(selectedBorrowing.ngayDuyet) }}</td>
+                      </tr>
+                      <tr v-if="selectedBorrowing.ngayMuon">
+                        <td class="fw-bold">Ngày mượn:</td>
+                        <td>{{ formatDateTime(selectedBorrowing.ngayMuon) }}</td>
+                      </tr>
+                      <tr v-if="selectedBorrowing.ngayHenTra">
+                        <td class="fw-bold">Hạn trả:</td>
+                        <td>{{ formatDate(selectedBorrowing.ngayHenTra) }}</td>
+                      </tr>
+                      <tr v-if="selectedBorrowing.ngayTra">
+                        <td class="fw-bold">Ngày trả:</td>
+                        <td>{{ formatDateTime(selectedBorrowing.ngayTra) }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">Trạng thái:</td>
+                        <td>
+                          <span class="badge" :class="getDetailedStatusClass(selectedBorrowing)">
+                            {{ selectedBorrowing.tinhTrang }}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr v-if="selectedBorrowing.ghiChu">
+                        <td class="fw-bold">Ghi chú:</td>
+                        <td>{{ selectedBorrowing.ghiChu }}</td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Sách *</label>
-                <select class="form-select" v-model="borrowingForm.sachId" required>
-                  <option value="">Chọn sách</option>
-                  <option v-for="book in availableBooks" :key="book._id" :value="book._id">
-                    {{ book.tenSach }} - {{ book.tacGia }} (Còn: {{ book.soQuyen }})
-                  </option>
-                </select>
+
+              <!-- Thông tin độc giả -->
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-person me-2"></i>Thông tin độc giả</h6>
+                  </div>
+                  <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                      <tr>
+                        <td class="fw-bold">Họ tên:</td>
+                        <td>{{ selectedBorrowing.docGia?.hoTen || selectedBorrowing.thongTinDocGia?.hoTen }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">Email:</td>
+                        <td>{{ selectedBorrowing.docGia?.email || selectedBorrowing.thongTinDocGia?.email }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">Điện thoại:</td>
+                        <td>{{ selectedBorrowing.docGia?.soDienThoai || selectedBorrowing.thongTinDocGia?.dienThoai || 'Chưa có' }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">Địa chỉ:</td>
+                        <td>{{ selectedBorrowing.docGia?.diaChi || selectedBorrowing.thongTinDocGia?.diaChi || 'Chưa có' }}</td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Hạn trả</label>
-                <input type="date" class="form-control" v-model="borrowingForm.hanTra" required>
+
+              <!-- Thông tin sách -->
+              <div class="col-12">
+                <div class="card mb-3">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-book me-2"></i>Thông tin sách</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                          <tr>
+                            <td class="fw-bold">Mã sách:</td>
+                            <td>{{ selectedBorrowing.sach?.maSach || selectedBorrowing.thongTinSach?.maSach }}</td>
+                          </tr>
+                          <tr>
+                            <td class="fw-bold">Tên sách:</td>
+                            <td>{{ selectedBorrowing.sach?.tenSach || selectedBorrowing.thongTinSach?.tenSach }}</td>
+                          </tr>
+                          <tr>
+                            <td class="fw-bold">Tác giả:</td>
+                            <td>{{ selectedBorrowing.sach?.tacGia || selectedBorrowing.thongTinSach?.tacGia }}</td>
+                          </tr>
+                        </table>
+                      </div>
+                      <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                          <tr>
+                            <td class="fw-bold">NXB:</td>
+                            <td>{{ selectedBorrowing.sach?.maNXB || selectedBorrowing.thongTinSach?.maNXB || 'N/A' }}</td>
+                          </tr>
+                          <tr>
+                            <td class="fw-bold">Năm xuất bản:</td>
+                            <td>{{ selectedBorrowing.sach?.namXuatBan || selectedBorrowing.thongTinSach?.namXuatBan }}</td>
+                          </tr>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Ghi chú</label>
-                <textarea class="form-control" v-model="borrowingForm.ghiChu" rows="2"></textarea>
+
+              <!-- Thông tin nhân viên -->
+              <div class="col-12" v-if="selectedBorrowing.nhanVien || selectedBorrowing.thongTinNhanVien">
+                <div class="card">
+                  <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-person-badge me-2"></i>Nhân viên xử lý</h6>
+                  </div>
+                  <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                      <tr>
+                        <td class="fw-bold">Họ tên:</td>
+                        <td>{{ selectedBorrowing.nhanVien?.hoTenNV || selectedBorrowing.thongTinNhanVien?.hoTenNV }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">Chức vụ:</td>
+                        <td>{{ selectedBorrowing.nhanVien?.chucVu || selectedBorrowing.thongTinNhanVien?.chucVu || 'Nhân viên' }}</td>
+                      </tr>
+                      <tr>
+                        <td class="fw-bold">SDT:</td>
+                        <td>{{ selectedBorrowing.nhanVien?.soDienThoai || selectedBorrowing.thongTinNhanVien?.soDienThoai }}</td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="closeModal">Hủy</button>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
-                {{ saving ? 'Đang tạo...' : 'Tạo phiếu mượn' }}
-              </button>
-            </div>
-          </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeDetailModal">Đóng</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Modal backdrop -->
+    <div v-if="showDetailModal" class="modal-backdrop fade show"></div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { muonSachService } from '../../services/muonsach.service.js'
 
 export default {
   name: 'AdminBorrowings',
   setup() {
     const borrowings = ref([])
-    const readers = ref([])
-    const availableBooks = ref([])
     const loading = ref(false)
-    const saving = ref(false)
-    const showAddModal = ref(false)
+    const showDetailModal = ref(false)
+    const selectedBorrowing = ref(null)
     
     const searchKeyword = ref('')
     const statusFilter = ref('')
-    const dateFrom = ref('')
-    const dateTo = ref('')
     const currentPage = ref(1)
     const totalPages = ref(1)
+    const searchTimeout = ref(null)
 
-    const borrowingForm = reactive({
-      docGiaId: '',
-      sachId: '',
-      hanTra: '',
-      ghiChu: ''
+    // Stats
+    const stats = computed(() => {
+      return {
+        pending: borrowings.value.filter(b => b.tinhTrang === 'Chờ duyệt').length,
+        approved: borrowings.value.filter(b => b.tinhTrang === 'Đã duyệt').length,
+        borrowing: borrowings.value.filter(b => b.tinhTrang === 'Đang mượn').length,
+        returned: borrowings.value.filter(b => b.tinhTrang === 'Đã trả').length,
+      }
     })
 
     const visiblePages = computed(() => {
@@ -265,34 +446,50 @@ export default {
       return pages
     })
 
+    // Danh sách trạng thái hợp lệ cho mỗi trạng thái hiện tại
+    const statusTransitions = {
+      "Chờ duyệt": ["Đã duyệt", "Hủy mượn"],
+      "Đã duyệt": ["Đang mượn", "Hủy mượn"],
+      "Đang mượn": ["Đã trả"],
+      "Đã trả": [],
+      "Hủy mượn": []
+    }
+
+    const getValidStatusesForBorrowing = (borrowing) => {
+      return statusTransitions[borrowing.tinhTrang] || []
+    }
+
+    const getDetailedStatusClass = (borrowing) => {
+      switch(borrowing.tinhTrang) {
+        case 'Chờ duyệt': return 'bg-warning text-dark'
+        case 'Đã duyệt': return 'bg-info'
+        case 'Đang mượn': return 'bg-primary'
+        case 'Đã trả': return 'bg-success'
+        case 'Hủy mượn': return 'bg-danger'
+        default: return 'bg-secondary'
+      }
+    }
+
+    const getStatusDescription = (borrowing) => {
+      switch(borrowing.tinhTrang) {
+        case 'Chờ duyệt': 
+          return borrowing.ngayYeuCau ? formatDateTime(borrowing.ngayYeuCau) : 'Chờ xử lý'
+        case 'Đã duyệt': 
+          return borrowing.ngayDuyet ? `Duyệt: ${formatDateTime(borrowing.ngayDuyet)}` : 'Đã phê duyệt'
+        case 'Đang mượn': 
+          return borrowing.ngayHenTra ? `Hạn: ${formatDate(borrowing.ngayHenTra)}` : 'Đang mượn'
+        case 'Đã trả': 
+          return borrowing.ngayTra ? `Trả: ${formatDateTime(borrowing.ngayTra)}` : 'Đã trả'
+        case 'Hủy mượn': 
+          return borrowing.ngayHuy ? `Hủy: ${formatDateTime(borrowing.ngayHuy)}` : 'Đã hủy'
+        default: return ''
+      }
+    }
+
     const isOverdue = (borrowing) => {
-      if (borrowing.ngayTra) return false
-      return new Date() > new Date(borrowing.hanTra)
-    }
-
-    const getStatusBadgeClass = (borrowing) => {
-      if (borrowing.ngayTra) return 'bg-success'
-      if (isOverdue(borrowing)) return 'bg-danger'
-      return 'bg-warning'
-    }
-
-    const getStatusText = (borrowing) => {
-      if (borrowing.ngayTra) return 'Đã trả'
-      if (isOverdue(borrowing)) return 'Quá hạn'
-      return 'Đang mượn'
-    }
-
-    const formatDate = (dateString) => {
-      if (!dateString) return ''
-      return new Date(dateString).toLocaleDateString('vi-VN')
-    }
-
-    const formatCurrency = (amount) => {
-      if (!amount) return '0 ₫'
-      return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND'
-      }).format(amount)
+      if (borrowing.ngayTra || borrowing.tinhTrang !== 'Đang mượn') return false
+      if (!borrowing.ngayHenTra) return false
+      return new Date() > new Date(borrowing.ngayHenTra)
     }
 
     const fetchBorrowings = async () => {
@@ -303,22 +500,49 @@ export default {
           limit: 10
         }
         
-        if (searchKeyword.value) params.search = searchKeyword.value
-        if (statusFilter.value) params.status = statusFilter.value
-        if (dateFrom.value) params.dateFrom = dateFrom.value
-        if (dateTo.value) params.dateTo = dateTo.value
+        // Thêm search parameter
+        if (searchKeyword.value && searchKeyword.value.trim()) {
+          params.search = searchKeyword.value.trim()
+        }
+        
+        if (statusFilter.value) {
+          params.status = statusFilter.value
+        }
+        
+        console.log('🔍 Fetching with params:', params)
         
         const response = await muonSachService.getAll(params)
+        console.log('📥 Response:', response.data)
+        
         borrowings.value = response.data.data || response.data
+        totalPages.value = response.data.pagination?.totalPages || response.data.totalPages || 1
         
       } catch (error) {
-        console.error('Lỗi khi tải danh sách mượn sách:', error)
+        console.error('❌ Lỗi khi tải danh sách mượn sách:', error)
+        borrowings.value = []
+        totalPages.value = 1
       } finally {
         loading.value = false
       }
     }
 
+    // Debounced search function
+    const debouncedSearch = () => {
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value)
+      }
+      
+      searchTimeout.value = setTimeout(() => {
+        currentPage.value = 1
+        fetchBorrowings()
+      }, 500) // Delay 500ms
+    }
+
     const handleSearch = () => {
+      debouncedSearch()
+    }
+
+    const handleInstantSearch = () => {
       currentPage.value = 1
       fetchBorrowings()
     }
@@ -326,8 +550,7 @@ export default {
     const clearFilters = () => {
       searchKeyword.value = ''
       statusFilter.value = ''
-      dateFrom.value = ''
-      dateTo.value = ''
+      currentPage.value = 1
       fetchBorrowings()
     }
 
@@ -338,88 +561,126 @@ export default {
       }
     }
 
-    const returnBook = async (borrowing) => {
-      if (confirm('Xác nhận trả sách?')) {
+    const updateBorrowingStatus = async (borrowing, newStatus) => {
+      if (newStatus === borrowing.tinhTrang) return
+
+      let confirmMessage = `Chuyển trạng thái từ "${borrowing.tinhTrang}" sang "${newStatus}"?`
+      let ghiChu = ''
+
+      if (newStatus === 'Hủy mượn') {
+        ghiChu = prompt('Lý do hủy mượn:') || 'Hủy theo yêu cầu'
+        if (!ghiChu.trim()) return
+        confirmMessage += `\nLý do: ${ghiChu}`
+      }
+
+      if (!confirm(confirmMessage)) return
+
+      try {
+        loading.value = true
+        
+        await muonSachService.updateStatus(borrowing._id, {
+          tinhTrang: newStatus,
+          ghiChu
+        })
+
+        await fetchBorrowings()
+        alert(`Cập nhật trạng thái thành công!`)
+
+      } catch (error) {
+        console.error('Lỗi cập nhật trạng thái:', error)
+        
+        let errorMessage = 'Có lỗi xảy ra khi cập nhật trạng thái'
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        }
+        
+        alert(errorMessage)
+        await fetchBorrowings()
+        
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const deleteBorrowing = async (borrowing) => {
+      if (confirm(`Bạn có chắc muốn xóa phiếu mượn này?\n\nĐộc giả: ${borrowing.docGia?.hoTen || borrowing.thongTinDocGia?.hoTen}\nSách: ${borrowing.sach?.tenSach || borrowing.thongTinSach?.tenSach}`)) {
         try {
-          await muonSachService.returnBook(borrowing._id, {
-            ngayTra: new Date().toISOString()
-          })
+          await muonSachService.delete(borrowing._id)
           fetchBorrowings()
+          alert('Xóa phiếu mượn thành công!')
         } catch (error) {
-          alert('Có lỗi xảy ra khi trả sách')
+          console.error('Lỗi khi xóa phiếu mượn:', error)
+          alert('Có lỗi xảy ra khi xóa phiếu mượn')
         }
       }
     }
 
     const viewDetails = (borrowing) => {
-      // TODO: Show borrowing details modal
-      console.log('View details:', borrowing)
+      selectedBorrowing.value = borrowing
+      showDetailModal.value = true
     }
 
-    const closeModal = () => {
-      showAddModal.value = false
-      Object.assign(borrowingForm, {
-        docGiaId: '',
-        sachId: '',
-        hanTra: '',
-        ghiChu: ''
-      })
+    const closeDetailModal = () => {
+      showDetailModal.value = false
+      selectedBorrowing.value = null
     }
 
-    const createBorrowing = async () => {
-      saving.value = true
+    const formatDate = (dateString) => {
+      if (!dateString) return 'Không xác định'
       try {
-        await muonSachService.create(borrowingForm)
-        closeModal()
-        fetchBorrowings()
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return 'Không xác định'
+        return date.toLocaleDateString('vi-VN')
       } catch (error) {
-        alert('Có lỗi xảy ra khi tạo phiếu mượn')
-      } finally {
-        saving.value = false
+        return 'Không xác định'
       }
     }
 
-    const exportData = () => {
-      // TODO: Implement export functionality
-      alert('Tính năng xuất Excel đang được phát triển')
+    const formatDateTime = (dateString) => {
+      if (!dateString) return 'Không xác định'
+      try {
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return 'Không xác định'
+        return date.toLocaleString('vi-VN')
+      } catch (error) {
+        return 'Không xác định'
+      }
     }
+
+    // Watch cho auto search
+    watch(searchKeyword, () => {
+      debouncedSearch()
+    })
 
     onMounted(() => {
       fetchBorrowings()
-      // Set default return date to 2 weeks from now
-      const defaultReturnDate = new Date()
-      defaultReturnDate.setDate(defaultReturnDate.getDate() + 14)
-      borrowingForm.hanTra = defaultReturnDate.toISOString().split('T')[0]
     })
 
     return {
       borrowings,
-      readers,
-      availableBooks,
       loading,
-      saving,
-      showAddModal,
+      showDetailModal,
+      selectedBorrowing,
       searchKeyword,
       statusFilter,
-      dateFrom,
-      dateTo,
       currentPage,
       totalPages,
-      borrowingForm,
+      stats,
       visiblePages,
+      getValidStatusesForBorrowing,
+      getDetailedStatusClass,
+      getStatusDescription,
       isOverdue,
-      getStatusBadgeClass,
-      getStatusText,
+      updateBorrowingStatus,
       formatDate,
-      formatCurrency,
+      formatDateTime,
       handleSearch,
+      handleInstantSearch,
       clearFilters,
       changePage,
-      returnBook,
+      deleteBorrowing,
       viewDetails,
-      closeModal,
-      createBorrowing,
-      exportData
+      closeDetailModal,
     }
   }
 }
@@ -437,5 +698,74 @@ export default {
 
 .modal {
   background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1040;
+  width: 100vw;
+  height: 100vh;
+  background-color: #000;
+  opacity: 0.5;
+}
+
+.table-borderless td {
+  border: none !important;
+  padding: 0.25rem 0.5rem;
+}
+
+.card-header h6 {
+  color: #495057;
+}
+
+.form-select-sm {
+  font-size: 0.875rem;
+  min-width: 120px;
+}
+
+.text-muted {
+  font-size: 0.75rem;
+}
+
+/* Filter improvements */
+.card .card-body .row.g-3 {
+  align-items: center;
+}
+
+.btn-group {
+  flex-wrap: nowrap;
+}
+
+/* Table improvements */
+.table th {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.table td {
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.badge {
+  font-size: 0.75rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .d-flex.gap-2 {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .table-responsive {
+    font-size: 0.8rem;
+  }
 }
 </style>

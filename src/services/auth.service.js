@@ -26,8 +26,15 @@ export const authService = {
     return apiClient.post("/auth/refresh-token", { refreshToken });
   },
 
-  // Đăng xuất
+  // Đăng xuất - XÓA SESSIONSTORAGE
   logout() {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("userInfo");
+    sessionStorage.removeItem("loginTime");
+    sessionStorage.removeItem("lastActivity");
+
+    // Cũng xóa localStorage để đảm bảo (nếu có sót)
     localStorage.removeItem("token");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userInfo");

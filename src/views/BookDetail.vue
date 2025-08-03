@@ -29,6 +29,7 @@
               <h4 class="card-title">{{ book.tenSach }}</h4>
               <p class="text-muted mb-3">{{ book.tacGia }}</p>
 
+              <!-- Nút mượn sách với alert xác nhận -->
               <div v-if="authStore.isAuthenticated && !authStore.isNhanVien" class="d-grid">
                 <button 
                   class="btn btn-primary"
@@ -39,6 +40,20 @@
                   <i v-else class="bi bi-bookmark-plus me-2"></i>
                   {{ borrowing ? 'Đang mượn...' : 'Mượn sách này' }}
                 </button>
+              </div>
+
+              <!-- Hiển thị thông báo nếu chưa đăng nhập -->
+              <div v-else-if="!authStore.isAuthenticated" class="d-grid">
+                <router-link to="/login" class="btn btn-outline-primary">
+                  <i class="bi bi-box-arrow-in-right me-2"></i>
+                  Đăng nhập để mượn sách
+                </router-link>
+              </div>
+
+              <!-- Hiển thị thông báo nếu là nhân viên -->
+              <div v-else-if="authStore.isNhanVien" class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                Chỉ độc giả mới có thể mượn sách
               </div>
             </div>
           </div>
@@ -94,8 +109,12 @@
                   <strong>Số lượng:</strong>
                 </div>
                 <div class="col-sm-9">
-                  <span class="badge bg-success">
-                    {{ book.soQuyen }} cuốn
+                  <span class="badge" :class="(book.soQuyen || 0) > 0 ? 'bg-success' : 'bg-danger'">
+                    {{ book.soQuyen || 0 }} cuốn
+                  </span>
+                  <span v-if="(book.soQuyen || 0) <= 0" class="text-danger ms-2">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    Hết sách
                   </span>
                 </div>
               </div>
@@ -105,7 +124,7 @@
                   <strong>Ngày thêm:</strong>
                 </div>
                 <div class="col-sm-9">
-                  {{ formatDate(book.createdAt) }}
+                  {{ formatDate(book.ngayTao) }}
                 </div>
               </div>
             </div>
@@ -183,34 +202,90 @@ export default {
       }
     }
 
+    // Cập nhật function handleBorrow với alert xác nhận giống BookCard
     const handleBorrow = async () => {
+      // Kiểm tra đăng nhập
       if (!authStore.isAuthenticated) {
         router.push('/login')
         return
       }
 
+      // Kiểm tra role (chỉ độc giả mới được mượn)
+      if (authStore.user?.role !== 'docgia') {
+        alert('Chỉ độc giả mới có thể mượn sách!')
+        return
+      }
+
+      // Kiểm tra sách có sẵn
       if (!book.value || (book.value.soQuyen || 0) <= 0) {
-        alert('Sách đã hết, không thể mượn')
+        alert('Sách đã hết, không thể mượn!')
+        return
+      }
+
+      // Alert xác nhận giống BookCard
+      const confirmBorrow = confirm(
+        `Bạn có chắc chắn muốn mượn sách "${book.value.tenSach}" không?\n\n` +
+        `Tác giả: ${book.value.tacGia}\n` +
+        `Nhà xuất bản: ${book.value.nhaXuatBan?.tenNXB || book.value.maNXB || 'Chưa xác định'}\n` +
+        `Năm xuất bản: ${book.value.namXuatBan}\n` +
+        `Số lượng còn: ${book.value.soQuyen} cuốn\n\n` +
+        `Yêu cầu sẽ được gửi đến admin để phê duyệt.`
+      )
+
+      if (!confirmBorrow) {
         return
       }
 
       borrowing.value = true
+      
       try {
-        await muonSachService.borrowBook(book.value._id, {
-          docGiaId: authStore.user.id,
-          ghiChu: ''
+        console.log('📤 Sending borrow request for book:', book.value._id)
+        
+        // Gửi yêu cầu mượn sách (sẽ tạo với trạng thái "Chờ duyệt")
+        const response = await muonSachService.create({
+          sachId: book.value._id,
+          ghiChu: `Yêu cầu mượn sách từ trang chi tiết: ${book.value.tenSach}`
         })
         
-        // Cập nhật số lượng sách sau khi mượn thành công
-        book.value.soQuyen = (book.value.soQuyen || 0) - 1
+        console.log('✅ Borrow success:', response)
         
-        alert('Mượn sách thành công!')
+        // Alert thành công giống BookCard
+        alert('Gửi yêu cầu mượn sách thành công! Vui lòng chờ admin phê duyệt.')
         
-        // Chuyển đến trang sách đã mượn
-        router.push('/my-borrowings')
-      } catch (err) {
-        console.error('Lỗi khi mượn sách:', err)
-        alert(err.response?.data?.message || 'Có lỗi xảy ra khi mượn sách')
+        // Giảm số lượng sách trong UI (optional)
+        if (book.value.soQuyen > 0) {
+          book.value.soQuyen -= 1
+        }
+        
+        // Hỏi có muốn xem danh sách sách đã mượn không
+        const goToMyBorrowings = confirm(
+          'Bạn có muốn xem danh sách sách đã mượn không?'
+        )
+        
+        if (goToMyBorrowings) {
+          router.push('/my-borrowings')
+        }
+        
+      } catch (error) {
+        console.error('❌ Borrow error:', error)
+        
+        let errorMessage = 'Có lỗi xảy ra khi gửi yêu cầu mượn sách'
+        
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response?.status === 400) {
+          errorMessage = 'Bạn đã có yêu cầu mượn sách này hoặc đã vượt quá giới hạn mượn sách'
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'
+          // Chuyển về trang login
+          router.push('/login')
+        } else if (error.response?.status === 404) {
+          errorMessage = 'Không tìm thấy sách hoặc tài khoản'
+        }
+        
+        // Alert lỗi giống BookCard
+        alert(errorMessage)
+        
       } finally {
         borrowing.value = false
       }
@@ -274,6 +349,11 @@ export default {
 .card {
   border: none;
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
 }
 
 .row.mb-3 {
@@ -283,5 +363,65 @@ export default {
 
 .row.mb-3:last-child {
   border-bottom: none;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.spinner-border-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* Button hover effects */
+.btn-primary:hover:not(:disabled) {
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary:hover {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-secondary:hover {
+  background-color: #5c636a;
+  border-color: #565e64;
+  transform: translateY(-1px);
+}
+
+/* Badge styling */
+.badge.bg-success {
+  background-color: #198754 !important;
+}
+
+.badge.bg-danger {
+  background-color: #dc3545 !important;
+}
+
+/* Alert styling */
+.alert {
+  border-radius: 0.5rem;
+  border: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .book-cover {
+    padding: 1rem;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    margin-bottom: 0.5rem;
+  }
 }
 </style>

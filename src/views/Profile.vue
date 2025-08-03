@@ -51,10 +51,6 @@
                   <div class="col-sm-4"><strong>Chức vụ:</strong></div>
                   <div class="col-sm-8">{{ userInfo.chucVu }}</div>
                 </div>
-                <div class="row mb-3" v-if="userInfo.gioitinh">
-                  <div class="col-sm-4"><strong>Giới tính:</strong></div>
-                  <div class="col-sm-8">{{ userInfo.gioitinh }}</div>
-                </div>
                 <div class="row mb-3" v-if="userInfo.diaChi">
                   <div class="col-sm-4"><strong>Địa chỉ:</strong></div>
                   <div class="col-sm-8">{{ userInfo.diaChi }}</div>
@@ -162,15 +158,6 @@
                         id="editChucVu"
                         v-model="form.chucVu"
                       >
-                    </div>
-                    <div class="col-md-6 mb-3">
-                      <label for="editGioiTinh" class="form-label">Giới tính</label>
-                      <select class="form-control" id="editGioiTinh" v-model="form.gioitinh">
-                        <option value="">Chọn giới tính</option>
-                        <option value="Nam">Nam</option>
-                        <option value="Nữ">Nữ</option>
-                        <option value="Khác">Khác</option>
-                      </select>
                     </div>
                   </div>
                   <div class="row">
@@ -422,7 +409,6 @@ export default {
       hoTenNV: '',
       chucVu: '',
       diaChi: '',
-      gioitinh: '',
       soDienThoai: '',
       
       // Độc giả fields
@@ -441,12 +427,6 @@ export default {
 
     const loadUserInfo = () => {
       const user = authStore.user
-      console.log('=== LOADING USER INFO ===')
-      console.log('User data:', user)
-      console.log('Is Nhan Vien:', isNhanVien.value)
-      console.log('Is Doc Gia:', isDocGia.value)
-      console.log('Token available:', !!authStore.token)
-      console.log('LocalStorage token:', !!localStorage.getItem('token'))
     }
 
     const loadFormData = () => {
@@ -458,7 +438,6 @@ export default {
           form.hoTenNV = user.hoTenNV || user.hoTen || ''
           form.chucVu = user.chucVu || ''
           form.diaChi = user.diaChi || ''
-          form.gioitinh = user.gioitinh || ''
           form.soDienThoai = user.soDienThoai || ''
         } else {
           // Load độc giả data
@@ -469,8 +448,6 @@ export default {
           form.diaChi = user.diaChi || user.diachi || ''   // SỬA DÒNG NÀY
           form.soDienThoai = user.soDienThoai || user.dienThoai || ''
         }
-        
-        console.log('Form after loading:', form)
       }
     }
 
@@ -480,13 +457,6 @@ export default {
       updateSuccess.value = ''
 
       try {
-        console.log('=== DEBUG PROFILE UPDATE ===')
-        console.log('User type:', isNhanVien.value ? 'Nhân viên' : 'Độc giả')
-        console.log('User object:', authStore.user)
-        console.log('Form data:', form)
-        console.log('Token available:', !!authStore.token)
-        console.log('Token from localStorage:', !!localStorage.getItem('token'))
-        console.log('Is authenticated:', authStore.isAuthenticated)
         
         // Kiểm tra user tồn tại
         if (!authStore.user) {
@@ -499,7 +469,6 @@ export default {
           throw new Error('Không tìm thấy ID người dùng. Vui lòng đăng nhập lại.')
         }
         
-        console.log('Using User ID:', userId)
 
         let updateData = {}
 
@@ -509,7 +478,6 @@ export default {
             hoTenNV: form.hoTenNV,
             chucVu: form.chucVu,
             diaChi: form.diaChi,
-            gioitinh: form.gioitinh,
             soDienThoai: form.soDienThoai
           }
         } else {
@@ -530,7 +498,6 @@ export default {
           }
         })
 
-        console.log('Update data:', updateData)
 
         // Gọi API profile mới
         const response = await fetch('/api/profile/update', {
@@ -581,8 +548,6 @@ export default {
         
         setTimeout(() => { updateSuccess.value = '' }, 1000)
       } catch (error) {
-        console.error('=== UPDATE ERROR ===')
-        console.error('Error:', error)
         
         updateError.value = error.message || 'Có lỗi xảy ra khi cập nhật thông tin'
         
@@ -621,8 +586,6 @@ export default {
           newPassword: passwordForm.newPassword
         }
 
-        console.log('Changing password for:', isNhanVien.value ? 'Nhân viên' : 'Độc giả')
-
         // Gọi API đổi mật khẩu mới
         const response = await fetch('/api/profile/change-password', {
           method: 'PUT',
@@ -649,7 +612,6 @@ export default {
           passwordSuccess.value = ''
         }, 3000)
       } catch (error) {
-        console.error('Change password error:', error)
         passwordError.value = error.message || 'Có lỗi xảy ra khi đổi mật khẩu'
       } finally {
         changingPassword.value = false
