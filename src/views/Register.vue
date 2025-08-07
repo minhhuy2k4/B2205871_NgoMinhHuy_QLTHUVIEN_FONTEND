@@ -2,19 +2,10 @@
   <div class="register">
     <div class="container-fluid h-100">
       <div class="row h-100">
-        <!-- Left side - Image/Info -->
-        <div class="col-lg-6 bg-primary text-white d-none d-lg-flex align-items-center justify-content-center">
-          <div class="text-center">
-            <i class="bi bi-person-plus display-1 mb-4" style="font-size: 8rem;"></i>
-            <h3 class="fw-bold mb-3">Tham Gia Cộng Đồng Đọc Sách</h3>
-            <p class="lead">
-              Đăng ký tài khoản để trải nghiệm hệ thống quản lý thư viện hiện đại.
-            </p>
-          </div>
-        </div>
+        
 
         <!-- Right side - Register Form -->
-        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+        <div class="col-lg-12 d-flex align-items-center justify-content-center">
           <div class="register-form w-100" style="max-width: 450px;">
             <div class="text-center mb-4">
               <i class="bi bi-book display-4 text-primary mb-3"></i>

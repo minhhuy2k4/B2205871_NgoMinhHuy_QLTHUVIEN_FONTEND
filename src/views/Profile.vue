@@ -225,7 +225,7 @@
                         type="date"
                         class="form-control"
                         id="editNgaySinh"
-                        v-model="form.ngaysinh"
+                        v-model="form.ngaySinh"
                       >
                     </div>
                   </div>
@@ -417,8 +417,8 @@ export default {
       email: '',
       hoTen: '',
       phai: '',
-      ngaysinh: '',
-      diachi: ''
+      ngaySinh: '',
+      diaChi: ''
     })
 
     const passwordForm = reactive({
@@ -446,7 +446,7 @@ export default {
           form.email = user.email || ''
           form.hoTen = user.hoTen || ''
           form.phai = user.phai || user.gioitinh || ''
-          form.ngaysinh = user.ngaysinh || user.ngaySinh ? (user.ngaysinh || user.ngaySinh).split('T')[0] : ''
+          form.ngaySinh = user.ngaySinh || user.ngaySinh ? (user.ngaysinh || user.ngaySinh).split('T')[0] : ''
           form.diaChi = user.diaChi || user.diachi || ''
           form.soDienThoai = user.soDienThoai || user.dienThoai || ''
         }
@@ -483,7 +483,7 @@ export default {
           updateData = {
             hoTen: form.hoTen,
             phai: form.phai,
-            ngaysinh: form.ngaysinh,
+            ngaySinh: form.ngaySinh,
             diaChi: form.diaChi,
             soDienThoai: form.soDienThoai
           }

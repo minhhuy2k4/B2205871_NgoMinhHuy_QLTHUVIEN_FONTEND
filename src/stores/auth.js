@@ -147,7 +147,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    // SETUP SESSION MANAGEMENT - THAY THẾ 23H TIMER
+    // SETUP SESSION MANAGEMENT
     setupSessionManagement() {
       // KIỂM TRA TOKEN MỖI 5 PHÚT
       this.refreshTimer = setInterval(async () => {

@@ -52,10 +52,10 @@
         <div class="card-header">
           <h5 class="mb-0">Danh sách nhà xuất bản ({{ totalPublishers }})</h5>
         </div>
-        <div class="card-body p-0">
+        <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead class="table-light">
+            <table class="table table-hover">
+              <thead class="table-dark">
                 <tr>
                   <th>STT</th>
                   <th>Mã NXB</th>

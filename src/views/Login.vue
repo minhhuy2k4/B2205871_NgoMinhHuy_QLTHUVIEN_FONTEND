@@ -47,7 +47,7 @@
                   class="form-control"
                   id="email"
                   v-model="form.email"
-                  :placeholder="userType === 'admin' ? 'Nhập tên đăng nhập' : 'Nhập email'"
+                  :placeholder="userType === 'admin' ? 'Nhập mã số nhân viên' : 'Nhập email'"
                   required
                 >
               </div>
